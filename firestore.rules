@@ -1,0 +1,317 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ==================== COMMON FUNCTIONS ====================
+
+           
+    
+
+    function isAuth() {
+      return request.auth != null;
+    }
+
+    function hasField(field) {
+      return field in request.resource.data && request.resource.data[field] != null;
+    }
+
+    function isNonEmptyString(field) {
+      return hasField(field)
+        && request.resource.data[field] is string
+        && request.resource.data[field].size() > 0;
+    }
+
+    function isNumber(field) {
+      return hasField(field)
+        && request.resource.data[field] is number;
+    }
+
+    function isPartialUpdate() {
+      return request.resource.data.keys().hasAny(resource.data.keys());
+    }
+
+    // ==================== USERS & AUTH ====================
+
+    match /users/{userId} {
+      allow read, write: if isAuth();
+    }
+
+  match /registration_otps/{email} {
+      // Written, read and deleted only by the OTP Cloud Functions, which use
+      // the Admin SDK and bypass rules entirely. No client needs either
+      // operation, so no client gets one — the passcodes are stored in plain
+      // text and were previously world-readable and world-writable.
+      allow read, write: if false;
+    }
+    match /appNotifications/{notifId} {
+      // Anyone (even unauthenticated) can CREATE a notification.
+      // This is needed so that the registration flow can write the admin
+      // notification immediately after signing out the new pending user.
+      allow create: if true;
+      // Only authenticated users can read, update, or delete notifications.
+      allow read, update, delete: if isAuth();
+    }
+
+    // ==================== COUNTERS ====================
+
+    match /transactionCounters/{docId} {
+      allow read, write: if isAuth();
+    }
+
+    match /invoiceCounters/{docId} {
+      allow read, write: if isAuth();
+    }
+
+    match /inv_counters/{docId} {
+      allow read, write: if isAuth();
+    }
+
+    match /atiCounters/{docId} {
+      allow read, write: if isAuth();
+    }
+
+    // ==================== TRANSACTIONS ====================
+
+       match /transactions/{txnId} {
+      allow read: if isAuth();
+
+      // Structure only — type and presence. No enum check on mainCategory:
+      // MAIN_CATEGORIES in types.ts lists three values, but the code writes
+      // five (Bills, Inventory Purchase and Salary are missing from it).
+      // Enforcing the documented list here would reject transactions the app
+      // legitimately creates today.
+      allow create: if isAuth()
+        && isNumber('amount')
+        && isNonEmptyString('date');
+
+      // Partial updates carry only the changed keys, so amount may be absent.
+      // Check it only when it is present.
+      allow update: if isAuth()
+        && (!hasField('amount') || isNumber('amount'));
+
+      allow delete: if isAuth();
+    }
+
+    match /deleted_transactions/{txnId} {
+      allow read, write: if isAuth();
+    }
+
+    // ==================== BILLS ====================
+
+    match /bills/{billId} {
+      allow read: if isAuth();
+      allow create: if isAuth() && isNumber('amount');
+      allow update: if isAuth() && (!hasField('amount') || isNumber('amount'));
+      allow delete: if isAuth();
+    }
+
+    match /billBranches/{docId} {
+      allow read, write: if isAuth();
+    }
+
+    // ==================== INVOICES ====================
+
+        match /invoices/{invoiceId} {
+      allow read: if isAuth();
+      allow create: if isAuth()
+        && isNonEmptyString('invoiceNumber')
+        && isNonEmptyString('date')
+        && isNumber('totalAmount');
+      allow update: if isAuth()
+        && (!hasField('totalAmount') || isNumber('totalAmount'));
+      allow delete: if isAuth();
+    }
+
+    match /deleted_invoices/{invoiceId} {
+      allow read, write: if isAuth();
+    }
+
+    match /againstInvoiceEntries/{entryId} {
+      allow read, write: if isAuth();
+    }
+
+    // ==================== SALARIES & PAYROLL ====================
+
+    match /salaries/{salaryId} {
+      allow read: if isAuth();
+      allow create: if isAuth() && isNumber('amount');
+      allow update: if isAuth() && (!hasField('amount') || isNumber('amount'));
+      allow delete: if isAuth();
+    }
+    match /salary/{document} {
+      allow read, write: if isAuth();
+    }
+
+    match /payroll_batches/{batchId} {
+      allow read, write: if isAuth();
+    }
+
+    match /payroll_rows/{rowId} {
+      allow read, write: if isAuth();
+    }
+
+    // ==================== EMPLOYEES ====================
+
+    match /employees/{employeeId} {
+      allow read, write: if isAuth();
+    }
+
+    // ==================== BANKS & CASH ====================
+
+        match /banks/{bankId} {
+      allow read: if isAuth();
+      allow create: if isAuth()
+        && isNonEmptyString('name')
+        && isNumber('balance');
+      allow update: if isAuth()
+        && (!hasField('balance') || isNumber('balance'));
+      allow delete: if isAuth();
+    }
+
+    match /bank_transfers/{transferId} {
+      allow read, write: if isAuth();
+    }
+
+    match /bank_transactions/{docId} {
+      allow read, write: if isAuth();
+    }
+
+    match /cash/{document} {
+      allow read, write: if isAuth();
+    }
+
+    match /cash_transactions/{docId} {
+      allow read, write: if isAuth();
+    }
+
+    match /cashInHand/{docId} {
+      allow read, write: if isAuth();
+    }
+
+    // ==================== INVENTORY & PRODUCTS ====================
+
+    match /inventory/{document} {
+      allow read, write: if isAuth();
+    }
+
+    match /products/{productId} {
+      allow read, write: if isAuth();
+    }
+
+    match /deleted_products/{document} {
+      allow read, write: if isAuth();
+    }
+
+    match /deleted_inventory/{document} {
+      allow read, write: if isAuth();
+    }
+
+    match /damaged_products/{document} {
+      allow read, write: if isAuth();
+    }
+
+    match /product_transfers/{document} {
+      allow read, write: if isAuth();
+    }
+
+    match /transfers/{transferId} {
+      allow read, write: if isAuth();
+    }
+
+    // ==================== BRANDS & MODELS ====================
+
+    match /brands/{brandId} {
+      allow read, write: if isAuth();
+    }
+
+    match /brandModels/{modelId} {
+      allow read, write: if isAuth();
+    }
+
+    // ==================== COMMISSION & BUDGETS ====================
+
+    match /commission_slabs/{slabId} {
+      allow read, write: if isAuth();
+    }
+
+    match /commissions/{commissionId} {
+      allow read, write: if isAuth();
+    }
+
+    match /budgets/{budgetId} {
+      allow read, write: if isAuth();
+    }
+
+    // ==================== LOANS ====================
+
+    match /loans/{loanId} {
+      allow read, write: if isAuth();
+    }
+
+    // ==================== ASSETS & PURCHASES ====================
+
+    match /assets/{assetId} {
+      allow read, write: if isAuth();
+    }
+
+        match /payable_to_futuristic/{docId} {
+      allow read, write: if isAuth();
+    }
+
+    match /purchasedOrders/{docId} {
+      // Structural checks deferred: the module validates on the service layer
+      // (validateShipment runs inside create and update), and the field set is
+      // still settling. Tighten once the shape is stable.
+      allow read, write: if isAuth();
+    }
+
+    match /inventory_payable_configs/{docId} {
+      allow read, write: if isAuth();
+    }
+
+    // ==================== CATEGORIES ====================
+
+    match /categories/{categoryId} {
+      allow read, write: if isAuth();
+    }
+
+    match /subCategories/{subCategoryId} {
+      allow read, write: if isAuth();
+    }
+
+    match /dynamicCategories/{categoryId} {
+      allow read, write: if isAuth();
+    }
+
+
+    //========================factory reset===============
+        // ── Collections the app writes to but had no rule of their own
+    // These fell under the default deny below, so every read and write against
+    // them failed silently — the feature simply did nothing and no error
+    // reached the user. Factory Reset could not clear them either, which would
+    // leave stale rows behind in a "clean" system.
+    match /customers/{docId}                { allow read, write: if isAuth(); }
+    match /salespersons/{docId}             { allow read, write: if isAuth(); }
+    match /companies/{docId}                { allow read, write: if isAuth(); }
+    match /dummy_invoices/{docId}           { allow read, write: if isAuth(); }
+    match /dummy_invoice_counters/{docId}   { allow read, write: if isAuth(); }
+    match /counters/{docId}                 { allow read, write: if isAuth(); }
+    match /settings/{docId}                 { allow read, write: if isAuth(); }
+    match /pendingInventoryPayments/{docId} { allow read, write: if isAuth(); }
+    match /bank_accounts/{docId}            { allow read, write: if isAuth(); }
+    match /cash_accounts/{docId}            { allow read, write: if isAuth(); }
+
+    // appConfig/{countryCities, branches, salespersonLocations, salespersons}
+    // fell under the default deny below — every read/write against it failed
+    // silently with "Missing or insufficient permissions", so country/city
+    // autocomplete + persistence, saved branches, and saved salesperson
+    // locations never actually saved.
+    match /appConfig/{docId} { allow read, write: if isAuth(); }
+
+    // 🔒 DEFAULT DENY
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

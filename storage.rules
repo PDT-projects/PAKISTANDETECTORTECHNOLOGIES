@@ -1,0 +1,58 @@
+rules_version = '2';
+
+// Firebase Storage rules
+//
+// Read access is signed-in only everywhere except invoice PDFs, which Meta's
+// servers fetch themselves when an invoice is sent over WhatsApp and cannot
+// authenticate.
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isAuth() {
+      return request.auth != null;
+    }
+
+    // Product photographs. Images only, and small — these render in a list.
+    match /inventory-images/{productId}/{file} {
+      allow read:  if isAuth();
+      allow write: if isAuth()
+        && request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+
+    // Shipment paperwork: proforma, bill of lading, customs documents,
+    // delivery photos.
+    //
+    // The 15 MB ceiling is deliberately higher than the inventory one. A
+    // scanned multi-page bill of lading routinely exceeds 5 MB, and refusing
+    // the document someone actually needs to attach sends them back to email —
+    // which is the problem attachments exist to solve.
+    //
+    // Content type is not restricted here because the useful set is wide (PDF,
+    // images, Excel, Word) and browsers report an empty type for some of them,
+    // notably .heic from an iPhone. The client checks type and extension
+    // together in validateAttachment; this rule holds the size and the login.
+    match /shipments/{shipmentId}/{file} {
+      allow read:   if isAuth();
+      allow write:  if isAuth() && request.resource.size < 15 * 1024 * 1024;
+      allow delete: if isAuth();
+    }
+
+    // Invoice PDFs.
+    //
+    // Readable without signing in, because WhatsApp fetches the document itself
+    // and has no credentials. The filename is a Firestore document id, so it is
+    // not guessable — but this is still a public file, and that was a business
+    // decision rather than a technical one.
+    match /invoices/pdfs/{file} {
+      allow read:  if true;
+      allow write: if isAuth();
+    }
+
+    // Anything without a rule above is closed.
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

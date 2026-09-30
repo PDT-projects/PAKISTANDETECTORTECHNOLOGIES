@@ -1,0 +1,35 @@
+﻿node_modules/
+functions/node_modules/
+
+# Environment variables -- never commit real keys
+.env
+.env.*
+!.env.example
+
+# Logs
+logs/
+*.log
+
+# Firebase
+.firebase/
+
+# Build output
+build/
+dist/
+
+# IDE
+.vscode/
+.idea/
+
+# Firebase service account / secrets -- never commit
+scripts/serviceAccountKey.json
+scripts/backups/
+
+# Archives
+*.rar
+*.zip
+
+# Session working files (temporary scripts/dumps from development chats)
+fix_*.ps1
+*_dump.txt
+_backup_*/
