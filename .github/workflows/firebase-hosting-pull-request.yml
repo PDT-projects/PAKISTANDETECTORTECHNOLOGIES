@@ -17,6 +17,12 @@ jobs:
         run: |
           cat << EOF > .env.production
           VITE_INVOICE_TEMPLATE=detector
+          VITE_COMPANY_NAME_LINE1=PAKISTAN
+          VITE_COMPANY_NAME_LINE2=DETECTOR TECHNOLOGIES
+          VITE_COMPANY_TAGLINE=Enterprise Finance System
+          VITE_COMPANY_DESCRIPTION=Secure financial management platform built for enterprise operations, reporting, and office workflow management across Pakistan.
+          VITE_COMPANY_LOGO=/PDTLogo.jpg
+          VITE_COMPANY_LOGO_ALT=Pakistan Detector Technologies logo
           VITE_FIREBASE_API_KEY=${{ secrets.VITE_FIREBASE_API_KEY }}
           VITE_FIREBASE_AUTH_DOMAIN=${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
           VITE_FIREBASE_PROJECT_ID=${{ secrets.VITE_FIREBASE_PROJECT_ID }}
